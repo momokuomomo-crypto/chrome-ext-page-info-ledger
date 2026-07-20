@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ページ情報ワンクリック台帳</title>
+    <link rel="stylesheet" href="ledger.css" />
+  </head>
+  <body>
+    <h1>ページ情報ワンクリック台帳</h1>
+    <p class="hint">
+      ツールバーのアイコンをクリックすると、現在のページ（タイトル・URL・選択中のテキスト）を
+      台帳に追加します。選択テキストを右クリックして「選択範囲を台帳に追加」から追加することもできます。
+    </p>
+    <div id="error" class="error" role="alert" hidden></div>
+    <div class="summary">
+      <span>件数：<strong id="count">0</strong></span>
+      <span>使用量：<span id="usage">-</span></span>
+    </div>
+    <div class="actions">
+      <button id="export-csv">CSVエクスポート</button>
+      <button id="export-json">JSONエクスポート</button>
+      <button id="delete-all" class="danger">全件削除</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>保存日時</th>
+          <th>タイトル</th>
+          <th>URL</th>
+          <th>選択テキスト</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="entry-list"></tbody>
+    </table>
+    <p id="empty-state" hidden>まだ記録がありません。ツールバーのアイコンをクリックして追加してください。</p>
+    <script type="module" src="ledger.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="28" fill="#0f766e"/>
+  <!-- 台帳（クリップボード）本体 -->
+  <rect x="34" y="22" width="60" height="88" rx="8" fill="#ffffff"/>
+  <!-- クリップ -->
+  <rect x="52" y="16" width="24" height="14" rx="4" fill="#0f766e" stroke="#ffffff" stroke-width="3"/>
+  <!-- 台帳の行（記録済みエントリ） -->
+  <rect x="44" y="42" width="40" height="6" rx="3" fill="#0f766e"/>
+  <rect x="44" y="56" width="40" height="6" rx="3" fill="#0f766e"/>
+  <rect x="44" y="70" width="28" height="6" rx="3" fill="#0f766e"/>
+  <!-- ワンクリックを示すチェックマーク -->
+  <circle cx="82" cy="90" r="16" fill="#22c55e"/>
+  <path d="M74 90 L80 96 L92 82" stroke="#ffffff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -8,13 +8,15 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests",
-    "test": "vitest run"
+    "test": "vitest run",
+    "package": "npm run build && node scripts/package-zip.mjs"
   },
   "dependencies": {
     "papaparse": "^5.5.3"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.1",
+    "archiver": "^7.0.1",
     "@types/chrome": "^0.2.2",
     "@types/papaparse": "^5.3.14",
     "@types/sinon-chrome": "^2.2.16",

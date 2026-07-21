@@ -91,7 +91,7 @@ async function refresh(): Promise<void> {
 
 async function handleDelete(id: string): Promise<void> {
   const response = await sendRequestSafely({ type: "DELETE_ENTRY", id });
-  if (!response.ok) {
+  if (response.type !== "MUTATION_RESULT" || !response.ok) {
     showError("削除に失敗しました。もう一度お試しください。");
     return;
   }
@@ -115,7 +115,7 @@ deleteAllButton.addEventListener("click", () => {
     const confirmed = window.confirm("すべてのエントリを削除します。よろしいですか？");
     if (!confirmed) return;
     const response = await sendRequestSafely({ type: "DELETE_ALL" });
-    if (!response.ok) {
+    if (response.type !== "MUTATION_RESULT" || !response.ok) {
       showError("全件削除に失敗しました。");
       return;
     }

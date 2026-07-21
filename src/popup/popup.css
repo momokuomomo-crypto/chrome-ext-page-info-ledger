@@ -1,0 +1,64 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  width: 260px;
+  margin: 0;
+  padding: 16px;
+}
+
+h1 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+
+.hint {
+  color: #666;
+  font-size: 0.8rem;
+  margin: 0 0 12px;
+}
+
+#add {
+  width: 100%;
+  padding: 8px;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f0f4ff;
+  cursor: pointer;
+}
+
+#add:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.status {
+  min-height: 1.2em;
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+
+.count-line {
+  font-size: 0.85rem;
+  color: #444;
+  margin: 0 0 12px;
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #3355dd;
+  font-size: 0.8rem;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}

@@ -8,9 +8,8 @@ import {
   undoLastAdd,
 } from "./shared/storage";
 import { isHttpUrl } from "./shared/ledger";
-import type { Request, Response } from "./shared/messages";
-
-const LEDGER_PAGE_PATH = "src/ledger/index.html";
+import { LEDGER_PAGE_PATH } from "./shared/constants";
+import type { CaptureStatus, Request, Response } from "./shared/messages";
 
 type Badge = "✓" | "済" | "!";
 
@@ -25,10 +24,10 @@ async function captureFromTab(
   tab: chrome.tabs.Tab,
   source: "toolbar" | "contextMenu",
   selectionOverride?: string,
-): Promise<void> {
+): Promise<CaptureStatus> {
   if (tab.id === undefined || tab.url === undefined || !isHttpUrl(tab.url)) {
     setBadge("!", tab.id);
-    return;
+    return "ineligible";
   }
   const tabId = tab.id;
 
@@ -39,7 +38,7 @@ async function captureFromTab(
     const bytesInUse = await getBytesInUse();
     if (bytesInUse >= SOFT_LIMIT_BYTES) {
       setBadge("!", tabId);
-      return;
+      return "error";
     }
 
     let selectedText = selectionOverride ?? "";
@@ -63,15 +62,23 @@ async function captureFromTab(
       now: new Date(),
     });
     setBadge(result.status === "duplicate" ? "済" : "✓", tabId);
+    return result.status;
   } catch (error) {
     console.error("captureFromTab failed", error);
     setBadge("!", tabId);
+    return "error";
   }
 }
 
-chrome.action.onClicked.addListener((tab) => {
-  void captureFromTab(tab, "toolbar");
-});
+// ツールバーアイコンにdefault_popupを設定しているため、chrome.action.onClickedは
+// 発火しない。代わりにpopup側の「追加」ボタンがCAPTURE_ACTIVE_TABメッセージを送り、
+// ここでその時点のアクティブタブを取得して記録する（activeTab権限は、クリックで
+// popupを開いた操作自体が「拡張機能の呼び出し」となるため、この後続処理にも及ぶ）。
+async function captureActiveTab(): Promise<CaptureStatus> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) return "ineligible";
+  return captureFromTab(tab, "toolbar");
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -114,6 +121,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 async function handleRequest(request: Request): Promise<Response> {
   switch (request.type) {
+    case "CAPTURE_ACTIVE_TAB":
+      return { type: "CAPTURE_RESULT", status: await captureActiveTab() };
     case "DELETE_ENTRY":
       await deleteEntry(request.id);
       return { type: "MUTATION_RESULT", ok: true };

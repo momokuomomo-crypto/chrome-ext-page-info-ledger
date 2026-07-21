@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ページ情報ワンクリック台帳</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>ページ情報ワンクリック台帳</h1>
+    <p class="hint">このページのタイトル・URL・選択中のテキストを台帳に記録します。</p>
+    <button id="add">現在のページを追加</button>
+    <p id="status" class="status" role="status"></p>
+    <p class="count-line">記録件数：<strong id="count">0</strong>件</p>
+    <div class="links">
+      <button id="undo" class="link-button">直前の追加を取り消す</button>
+      <button id="open-ledger" class="link-button">台帳を開く（一覧・エクスポート）</button>
+    </div>
+    <script type="module" src="popup.ts"></script>
+  </body>
+</html>

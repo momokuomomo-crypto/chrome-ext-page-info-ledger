@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import chrome from "sinon-chrome";
 import { chromeExtra } from "../setup";
 import type { Request, Response } from "../../src/shared/messages";
-import { loadAllEntries, loadMetadata } from "../../src/shared/storage";
+import { addEntryIfNotDuplicate, loadAllEntries, loadMetadata } from "../../src/shared/storage";
 
 interface FakeTab {
   id: number;
@@ -32,12 +32,21 @@ async function loadBackgroundFresh(): Promise<void> {
   await import("../../src/background");
 }
 
-function triggerActionClicked(tab: FakeTab): Promise<void> {
-  const listener = chromeExtra.action.onClicked.addListener.lastCall.args[0] as (
-    tab: FakeTab,
-  ) => void;
-  listener(tab);
-  return flushMicrotasks();
+/** popup経由のCAPTURE_ACTIVE_TABメッセージを、指定タブがアクティブな状態で発火させる。 */
+function triggerCaptureActiveTab(tab: FakeTab): Promise<Response> {
+  chrome.tabs.query.resolves([tab]);
+  return dispatch({ type: "CAPTURE_ACTIVE_TAB" });
+}
+
+/** captureフローを経由せず、storageへ直接1件登録してテストの前提状態を作る。 */
+async function seedEntry(overrides: Partial<{ url: string; selectedText: string }> = {}): Promise<void> {
+  await addEntryIfNotDuplicate({
+    title: "Example",
+    url: overrides.url ?? "https://example.com/",
+    selectedText: overrides.selectedText ?? "",
+    source: "toolbar",
+    now: new Date(),
+  });
 }
 
 function triggerContextMenuClicked(info: ContextMenuInfo, tab?: FakeTab): Promise<void> {
@@ -75,7 +84,6 @@ beforeEach(() => {
 describe("background: リスナー登録", () => {
   it("インポート時点で同期的にリスナーを登録する", async () => {
     await loadBackgroundFresh();
-    expect(chromeExtra.action.onClicked.addListener.called).toBe(true);
     expect(chrome.contextMenus.onClicked.addListener.called).toBe(true);
     expect(chrome.runtime.onInstalled.addListener.called).toBe(true);
     expect(chrome.runtime.onMessage.addListener.called).toBe(true);
@@ -92,13 +100,14 @@ describe("background: リスナー登録", () => {
   });
 });
 
-describe("background: ツールバークリックによる追加", () => {
+describe("background: CAPTURE_ACTIVE_TABメッセージによる追加（popupの「追加」ボタン）", () => {
   it("選択テキストありのページを追加し、バッジを✓にする", async () => {
     await loadBackgroundFresh();
     chromeExtra.scripting.executeScript.resolves([{ result: "選択されたテキスト" }]);
 
-    await triggerActionClicked(makeTab());
+    const response = await triggerCaptureActiveTab(makeTab());
 
+    expect(response).toEqual({ type: "CAPTURE_RESULT", status: "added" });
     const entries = await loadAllEntries();
     expect(entries).toHaveLength(1);
     expect(entries[0]?.selectedText).toBe("選択されたテキスト");
@@ -110,7 +119,7 @@ describe("background: ツールバークリックによる追加", () => {
     await loadBackgroundFresh();
     chromeExtra.scripting.executeScript.resolves([{ result: "" }]);
 
-    await triggerActionClicked(makeTab());
+    await triggerCaptureActiveTab(makeTab());
 
     const entries = await loadAllEntries();
     expect(entries).toHaveLength(1);
@@ -120,17 +129,28 @@ describe("background: ツールバークリックによる追加", () => {
   it("chrome://等の対象外ページではバッジを！にし、追加しない", async () => {
     await loadBackgroundFresh();
 
-    await triggerActionClicked(makeTab({ url: "chrome://extensions" }));
+    const response = await triggerCaptureActiveTab(makeTab({ url: "chrome://extensions" }));
 
+    expect(response).toEqual({ type: "CAPTURE_RESULT", status: "ineligible" });
     expect(await loadAllEntries()).toEqual([]);
     expect(chromeExtra.action.setBadgeText.lastCall.args[0]).toEqual({ text: "!", tabId: 1 });
+  });
+
+  it("アクティブタブが取得できない場合はineligibleを返す", async () => {
+    await loadBackgroundFresh();
+    chrome.tabs.query.resolves([]);
+
+    const response = await dispatch({ type: "CAPTURE_ACTIVE_TAB" });
+
+    expect(response).toEqual({ type: "CAPTURE_RESULT", status: "ineligible" });
+    expect(await loadAllEntries()).toEqual([]);
   });
 
   it("スクリプト実行が例外を投げても、タイトル・URLは保存する", async () => {
     await loadBackgroundFresh();
     chromeExtra.scripting.executeScript.rejects(new Error("Cannot access contents"));
 
-    await triggerActionClicked(makeTab());
+    await triggerCaptureActiveTab(makeTab());
 
     const entries = await loadAllEntries();
     expect(entries).toHaveLength(1);
@@ -142,8 +162,9 @@ describe("background: ツールバークリックによる追加", () => {
     chromeExtra.scripting.executeScript.resolves([{ result: "" }]);
     chrome.storage.local.set.rejects(new Error("QUOTA_BYTES exceeded"));
 
-    await triggerActionClicked(makeTab());
+    const response = await triggerCaptureActiveTab(makeTab());
 
+    expect(response).toEqual({ type: "CAPTURE_RESULT", status: "error" });
     expect(chromeExtra.action.setBadgeText.lastCall.args[0]).toEqual({ text: "!", tabId: 1 });
   });
 
@@ -151,9 +172,10 @@ describe("background: ツールバークリックによる追加", () => {
     await loadBackgroundFresh();
     chromeExtra.scripting.executeScript.resolves([{ result: "同じ選択" }]);
 
-    await triggerActionClicked(makeTab());
-    await triggerActionClicked(makeTab());
+    await triggerCaptureActiveTab(makeTab());
+    const response = await triggerCaptureActiveTab(makeTab());
 
+    expect(response).toEqual({ type: "CAPTURE_RESULT", status: "duplicate" });
     const entries = await loadAllEntries();
     expect(entries).toHaveLength(1);
     expect(chromeExtra.action.setBadgeText.lastCall.args[0]).toEqual({ text: "済", tabId: 1 });
@@ -185,8 +207,7 @@ describe("background: contextMenus", () => {
 
   it("undo-last-addは直前の追加を取り消す", async () => {
     await loadBackgroundFresh();
-    chromeExtra.scripting.executeScript.resolves([{ result: "" }]);
-    await triggerActionClicked(makeTab());
+    await seedEntry();
     expect(await loadAllEntries()).toHaveLength(1);
 
     await triggerContextMenuClicked({ menuItemId: "undo-last-add" });
@@ -207,8 +228,7 @@ describe("background: contextMenus", () => {
 describe("background: メッセージ経由の削除・全件削除", () => {
   it("DELETE_ENTRYで指定エントリを削除する", async () => {
     await loadBackgroundFresh();
-    chromeExtra.scripting.executeScript.resolves([{ result: "" }]);
-    await triggerActionClicked(makeTab());
+    await seedEntry();
     const [entry] = await loadAllEntries();
 
     const response = await dispatch({ type: "DELETE_ENTRY", id: entry!.id });
@@ -219,9 +239,8 @@ describe("background: メッセージ経由の削除・全件削除", () => {
 
   it("DELETE_ALLで全件削除する", async () => {
     await loadBackgroundFresh();
-    chromeExtra.scripting.executeScript.resolves([{ result: "" }]);
-    await triggerActionClicked(makeTab({ url: "https://example.com/1" }));
-    await triggerActionClicked(makeTab({ url: "https://example.com/2" }));
+    await seedEntry({ url: "https://example.com/1" });
+    await seedEntry({ url: "https://example.com/2" });
     expect(await loadAllEntries()).toHaveLength(2);
 
     const response = await dispatch({ type: "DELETE_ALL" });

@@ -42,3 +42,15 @@ npm run build
 | `downloads` | 台帳ページからのCSV/JSONエクスポート |
 
 http(s)以外のページ（`chrome://`等）は対象外。
+
+## 収益化方法
+
+無料版は100件まで。Pro版でカスタム列・Google Sheets連携を提供する。
+
+## 将来の拡張案
+
+- 画像URLの保存
+- 比較ビュー
+- チーム共有
+
+出典：[稟議書_Chrome拡張機能アイデア.md（A-1）](https://github.com/momokuomomo-crypto/ai-council-output/blob/master/chrome-extension-ideas/稟議書_Chrome拡張機能アイデア.md)
